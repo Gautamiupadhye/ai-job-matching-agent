@@ -1,0 +1,546 @@
+{
+  "name": "AI Job Matching and Career Intelligence Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "ecd2b83c-e2de-4379-ae32-c4d9f47172ca",
+      "name": "Daily Job Scan",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p1",
+              "name": "search_keyword",
+              "type": "string",
+              "value": "Python Developer"
+            },
+            {
+              "id": "p2",
+              "name": "skills",
+              "type": "string",
+              "value": "Python, Machine Learning, ml framework,Java, HTML, CSS, JavaScript, React, Git, GitHub, MySQL, SQL, Pandas, NumPy, Flask, REST APIs, Bootstrap, Unit Testing"
+            },
+            {
+              "id": "p3",
+              "name": "education",
+              "type": "string",
+              "value": "B.Tech , computer science, M.Tech "
+            },
+            {
+              "id": "p4",
+              "name": "experience",
+              "type": "string",
+              "value": "5 year"
+            },
+            {
+              "id": "p5",
+              "name": "preferred_location",
+              "type": "string",
+              "value": "kolhapur"
+            },
+            {
+              "id": "p6",
+              "name": "work_mode",
+              "type": "string",
+              "value": "remote,hybrid"
+            },
+            {
+              "id": "p8",
+              "name": "alert_email",
+              "type": "string",
+              "value": "thegautamip@gmail.com"
+            },
+            {
+              "id": "ec5df05c-e6d3-4a61-a0c4-b1b83ffe8362",
+              "name": "salary_expectation",
+              "value": "5",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "ignoreConversionErrors": false,
+          "dotNotation": true
+        }
+      },
+      "id": "4a59f560-daae-4013-a930-f929e10c7071",
+      "name": "My Candidate Profile",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        272,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://himalayas.app/jobs/api/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "junior software developer"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "22da9190-4f25-465a-a3d4-412f21ca7394",
+      "name": "Fetch Job Postings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        496,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "jobs",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "id": "1ba28916-688c-4276-acbc-1b1ddc3d2af3",
+      "name": "Split Jobs",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "recent",
+              "leftValue": "=\n{{ $json.updatedAt * 1000 > $now.minus({ days: 1 }).toMillis() }}\n",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "8cb968ad-b6c5-49c9-b322-22c88b5ded4a",
+      "name": "Only Last 24h Postings",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        944,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 20
+      },
+      "id": "6597cf86-ac16-4003-846d-c0f946b2f99e",
+      "name": "Limit to 20 Jobs",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1168,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-5-mini"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=CANDIDATE PROFILE\n\nSkills: {{ $(\"My Candidate Profile\").first().json.skills }}\nEducation: {{ $(\"My Candidate Profile\").first().json.education }}\nExperience: {{ $(\"My Candidate Profile\").first().json.experience }}\nPreferred location: {{ $(\"My Candidate Profile\").first().json.preferred_location }}\nWork mode: {{ $(\"My Candidate Profile\").first().json.work_mode }}\nSalary expectation: {{ $(\"My Candidate Profile\").first().json.salary_expectation }}\n\nJOB POSTING\n\nTitle: {{ $json.jobs?.title || $json.title || \"Not provided\" }}\nCompany: {{ $json.jobs?.companyName || $json.companyName || \"Not provided\" }}\nLocation requirement: {{ JSON.stringify($json.jobs?.locationRestrictions || $json.locationRestrictions || []) }}\nType: {{ $json.jobs?.employmentType || $json.employmentType || \"Not specified\" }}\nSalary: {{ ($json.jobs?.minSalary ?? $json.minSalary) != null ? (($json.jobs?.minSalary ?? $json.minSalary) + \" - \" + ($json.jobs?.maxSalary ?? $json.maxSalary ?? \"not stated\") + \" \" + ($json.jobs?.currency || $json.currency || \"\") + \" per \" + ($json.jobs?.salaryPeriod || $json.salaryPeriod || \"period not stated\")) : \"Not stated\" }}\nDescription: {{ String($json.jobs?.excerpt || $json.excerpt || $json.jobs?.description || $json.description || \"\").replace(/<[^>]+>/g, \" \").slice(0, 3500) }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "instructions": "You are an AI career intelligence analyst for a job-matching agent.\n\nCompare the candidate profile with the job posting using these weights:\n- Skills: 40%\n- Experience: 25%\n- Education: 10%\n- Location and work mode: 15%\n- Salary: 10%\n\nRules:\n1. Calculate a realistic match percentage from 0 to 100.\n2. Identify matched skills and important missing skills.\n3. Never assume the candidate has skills or experience that are not listed in the profile.\n4. Consider preferred location, work mode, job type, experience requirements, and salary expectations.\n5. If salary is not stated, treat it as neutral and do not penalize the candidate for missing salary information.\n6. If information is missing, mention the uncertainty instead of inventing details.\n7. Keep the summary concise, clear, and professional.\n8. Give practical recommendations to close skill gaps.\n9. Return only the JSON object matching the required schema.\n10. Do not send emails. Only evaluate job suitability.\n11. The candidate's preferred location is Kolhapur, Maharashtra, India. The candidate is open to remote or hybrid work.\n12. Compare the candidate's preferred location with the job's actual location restrictions. Use the job's locationRestrictions and timezoneRestrictions fields when available.\n13. If locationRestrictions is empty, state that the job's eligible locations are not specified. Do not assume the job is restricted to the United States, and do not assume it accepts candidates worldwide.\n14. If timezoneRestrictions is provided, assess whether the candidate's timezone may be compatible, but do not assume timezone compatibility guarantees hiring eligibility.\n15. If the job does not clearly confirm that applicants residing in India are eligible, mention that this needs confirmation.\n16. Do not automatically give a high location score just because a job is labelled remote. Check any available location and timezone restrictions.\n17. The candidate has 1 year of experience and a B.Tech in Computer Science. Evaluate these details against the actual job requirements without inventing additional experience or qualifications.\n18. The candidate's salary expectation is currently recorded as \"5\", with no currency or time unit specified. Treat salary compatibility as uncertain until the unit and currency are clarified.\n19. Make the match percentage reflect genuine suitability. Do not inflate scores when important requirements are missing or eligibility is uncertain.\n20. Keep all seven required JSON properties populated: match_percentage, matched_skills, missing_skills, location_work_mode_fit, salary_fit, summary, and recommendations.",
+          "maxTokens": 2500,
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "name": "job_match",
+              "schema": "{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"match_percentage\",\"matched_skills\",\"missing_skills\",\"location_work_mode_fit\",\"salary_fit\",\"summary\",\"recommendations\"],\"properties\":{\"match_percentage\":{\"type\":\"number\"},\"matched_skills\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"missing_skills\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"location_work_mode_fit\":{\"type\":\"string\"},\"salary_fit\":{\"type\":\"string\"},\"summary\":{\"type\":\"string\"},\"recommendations\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}}}",
+              "strict": true
+            }
+          }
+        }
+      },
+      "id": "ccfe1aba-163f-490b-b781-7ee755d474bc",
+      "name": "AI Match Analysis",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        800,
+        224
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "Gateway credits",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1",
+              "name": "title",
+              "type": "string",
+              "value": "={{ $(\"Limit to 20 Jobs\").item.json.jobs.title }}"
+            },
+            {
+              "id": "s2",
+              "name": "company",
+              "type": "string",
+              "value": "={{ $(\"Limit to 20 Jobs\").item.json.jobs.companyName }}"
+            },
+            {
+              "id": "s3",
+              "name": "url",
+              "type": "string",
+              "value": "={{ $(\"Split Jobs\").item.json.jobs.applicationLink || \"\" }}"
+            },
+            {
+              "id": "s4",
+              "name": "match",
+              "type": "number",
+              "value": "={{ $json.output[0].content[0].text.match_percentage }}"
+            },
+            {
+              "id": "s5",
+              "name": "matched_skills",
+              "type": "string",
+              "value": "={{ $json.output[0].content[0].text.matched_skills.join(\", \") }}"
+            },
+            {
+              "id": "s6",
+              "name": "missing_skills",
+              "type": "string",
+              "value": "={{ $json.output[0].content[0].text.missing_skills.join(\", \") }}"
+            },
+            {
+              "id": "s7",
+              "name": "fit_notes",
+              "type": "string",
+              "value": "={{ $json.output[0].content[0].text.location_work_mode_fit + \" | Salary: \" + $json.output[0].content[0].text.salary_fit }}"
+            },
+            {
+              "id": "s8",
+              "name": "summary",
+              "type": "string",
+              "value": "={{ $json.output[0].content[0].text.summary }}"
+            },
+            {
+              "id": "s9",
+              "name": "recommendations",
+              "type": "string",
+              "value": "={{ $json.output[0].content[0].text.recommendations.join(\"; \") }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4ef419d5-2e4b-48e8-b2d1-9580c7d50e46",
+      "name": "Combine Job and Score",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1024,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "hi",
+              "leftValue": "={{ $json.match }}",
+              "rightValue": 85,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a537edbf-1535-455c-a3dc-77d719ab1f5c",
+      "name": "Match 85% or Higher?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1280,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $(\"My Candidate Profile\").first().json.alert_email }}",
+        "subject": "={{ $json.match }}% Match — {{ $json.title }}",
+        "message": "=<h2>🎯 Great Job Match!</h2>\n<p><b>Position:</b> {{ $json.title }}</p>\n<p><b>Company:</b> {{ $json.company }}</p>\n<p><b>Match score:</b> {{ $json.match }}%</p>\n<hr>\n<p><b>Why this job fits you</b><br>{{ $json.summary }}</p>\n<p><b>Your matching skills</b><br>{{ $json.matched_skills }}</p>\n<p><b>Skills to improve</b><br>{{ $json.missing_skills || \"No major skill gaps listed\" }}</p>\n<p><b>Location and salary fit</b><br>{{ $json.fit_notes }}</p>\n<p><a href=\"{{ $json.url }}\">View job and apply</a></p>\n<p><i>Sent by your AI Job Matching Agent.</i></p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "6baa4c5b-d661-4f8c-aeb1-18562648108a",
+      "name": "Send Job Match Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1504,
+        0
+      ],
+      "webhookId": "2eb9cba2-3aae-46f2-a400-3f5baaed94f2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "h0CqLnWvh9D3sTTy",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "jobs",
+        "options": {}
+      },
+      "id": "6381276d-d9ab-4580-a360-d0b73edd5e73",
+      "name": "Collect Lower Matches",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $(\"My Candidate Profile\").first().json.alert_email }}",
+        "subject": "=AI Job Matching Agent — Skill Gap Report",
+        "message": "={{ $json.jobs\n  .slice()\n  .sort((a, b) => b.match - a.match)\n  .slice(0, 5)\n  .map((j, i) =>\n    `${i + 1}. ${j.title} — ${j.company}\nMatch: ${j.match}%\nImprove: ${j.missing_skills.split(\", \").slice(0, 2).join(\"; \")}\nNext: ${j.recommendations.split(\"; \")[0]}`\n  )\n  .join(\"\\n\\n\")\n}}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "7599d5ba-9d28-460d-bfb8-8000675c330e",
+      "name": "Send Skill Gap Report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1728,
+        192
+      ],
+      "webhookId": "1536dc4e-1697-441d-9eb6-02ba5b650762",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "h0CqLnWvh9D3sTTy",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily Job Scan": {
+      "main": [
+        [
+          {
+            "node": "My Candidate Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "My Candidate Profile": {
+      "main": [
+        [
+          {
+            "node": "Fetch Job Postings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Job Postings": {
+      "main": [
+        [
+          {
+            "node": "Split Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Jobs": {
+      "main": [
+        [
+          {
+            "node": "Only Last 24h Postings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Only Last 24h Postings": {
+      "main": [
+        [
+          {
+            "node": "Limit to 20 Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit to 20 Jobs": {
+      "main": [
+        [
+          {
+            "node": "AI Match Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Match Analysis": {
+      "main": [
+        [
+          {
+            "node": "Combine Job and Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Job and Score": {
+      "main": [
+        [
+          {
+            "node": "Match 85% or Higher?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match 85% or Higher?": {
+      "main": [
+        [
+          {
+            "node": "Send Job Match Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Collect Lower Matches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Lower Matches": {
+      "main": [
+        [
+          {
+            "node": "Send Skill Gap Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "323d95ad-423d-4e76-bf92-8d691fd0b3fd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5a392128360e462d58b3fcb44156099d87eb92b12142306ead9e1d2b77c6dfab"
+  },
+  "nodeGroups": [
+    {
+      "id": "457609ab-9ce7-44fd-9f04-2c26349cf868",
+      "name": "Collect candidate jobs",
+      "nodeIds": [
+        "4a59f560-daae-4013-a930-f929e10c7071",
+        "22da9190-4f25-465a-a3d4-412f21ca7394",
+        "1ba28916-688c-4276-acbc-1b1ddc3d2af3",
+        "8cb968ad-b6c5-49c9-b322-22c88b5ded4a",
+        "6597cf86-ac16-4003-846d-c0f946b2f99e"
+      ],
+      "description": "Runs daily with your profile, pulls fresh remote postings from the last 24 hours and caps the batch at 20."
+    },
+    {
+      "id": "516a7ddc-4c84-4eee-921d-65ddce76ce8b",
+      "name": "Score job fit",
+      "nodeIds": [
+        "ccfe1aba-163f-490b-b781-7ee755d474bc",
+        "4ef419d5-2e4b-48e8-b2d1-9580c7d50e46"
+      ],
+      "description": "AI compares each posting with your skills, education, experience, location, work mode and salary, then scores it."
+    }
+  ],
+  "id": "oihcj2cQ9JBEvp8s",
+  "tags": []
+}
